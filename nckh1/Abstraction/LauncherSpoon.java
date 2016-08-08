@@ -80,8 +80,6 @@ public class LauncherSpoon {
 				System.out.println(s);
 				if(Test1.checkBracket(s) == false)
 					System.out.println("check bracket false" + "/n-------------------------------");
-				if( Test1.checkDoubleBracket(s) == false)
-					System.out.println("check double bracket false" + "/n-------------------------------");
 			}
 					
 		}
