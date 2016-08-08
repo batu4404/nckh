@@ -138,8 +138,6 @@ public class Abstraction {
 			return unaryOp.toString();
 		}
 			
-		
-//		System.out.println("operand: " + operand + ", getclass: " + unaryOp.getClass());
 		Variable variable = Variable.getVariable(operand.toString(), listVariables);
 		UnaryOperatorKind operator = unaryOp.getKind();
 		String binaryOperator = "";
@@ -152,9 +150,9 @@ public class Abstraction {
 		if(operator == UnaryOperatorKind.PREINC)
 			binaryOperator = "+";
 		
-		String f = variable.getValue() + binaryOperator + "1";
+		String exp = wrap(variable.getValue(), binaryOperator, "1");
 		variable.increase();
-		f = "(" + variable.getValue() + "=" + f + ")";
+		String f = wrap(variable.getValue(), "=", exp);
 			
 		return f;
 	}
@@ -175,10 +173,12 @@ public class Abstraction {
 		String fThen = wrapAll( formularize(thenCtStatement, thenList), "and") ;
 		
 		CtStatement elseCtStatement = ifs.getElseStatement();
-		if(fThen != null)
-			f.add( wrap(ifTempStr, "=>", fThen) );
-		if(elseCtStatement == null)
+		if(elseCtStatement == null) {
+			if(fThen != null)
+				f.add(wrap(ifTempStr, "=>", fThen));
 			return f;
+		}
+			
 		
 		List<Variable> elseList = Helper.copyList(listVariables);
 		String fElse = wrapAll( formularize(elseCtStatement, elseList), "and" );
@@ -186,29 +186,31 @@ public class Abstraction {
 			return f;
 		
 		Variable vThen, vElse;
+		
+		
 		int indexOfVElse;
 		int indexOfVThen;
 		for(Variable v: listVariables) {
 			vThen = Variable.getVariable(v.getName(), thenList);
 			vElse = Variable.getVariable(v.getName(), elseList);
-//			if( vThen.getIndex() > vElse.getIndex())
-			
-			indexOfVThen = vThen.getIndex();
-			indexOfVElse = vElse.getIndex();
-			if(indexOfVThen > indexOfVElse) {
-				v.setIndex(indexOfVThen);
-				fElse += " and " + wrap(v.getValue(), "=", vElse.getValue());
-			}
-			else {
-				v.setIndex(indexOfVElse);
-				if(indexOfVElse > indexOfVThen) {
-					fThen += "and" + wrap(v.getValue(), "=", vThen.getValue());
-				}
-			}
-				
+			if( vThen.getIndex() > vElse.getIndex()) 
+				v.setIndex(vThen.getIndex());
+			else
+				v.setIndex(vElse.getIndex());
 		}
 		
-		f.add( wrap(wrap("not", ifTempStr), "=>", wrap(fElse)) );
+		String thenUpdate = updateVariable(listVariables, thenList);
+		if(thenUpdate != null)
+			fThen = wrap(fThen, "and", thenUpdate);
+		String elseUpdate = updateVariable(listVariables, elseList);
+		if(elseUpdate != null)
+			fElse = wrap(fElse, "and", elseUpdate);
+		
+		Variable.addVariable(listVariables, thenList);
+		Variable.addVariable(listVariables, elseList);
+		
+		f.add( wrap(ifTempStr, "=>", fThen));
+		f.add( wrap(wrap("not", ifTempStr), "=>", fElse) );
 		
 		return f;
 	}
@@ -329,6 +331,8 @@ public class Abstraction {
 	// cho lap so lan mac dinh 
 	public List<String> formularize(CtFor loop, List<Variable> listVariables) {
 		List<String> f = new ArrayList<>();
+		List<Variable> syn = Helper.copyList(listVariables);
+		
 		
 		List<CtStatement> forInit = loop.getForInit();
 		String fStatement;
@@ -353,21 +357,23 @@ public class Abstraction {
 			forLoop.initialize();
 		
 		String condition = null;
-		String conditionLoop = null;
 		String updateVarsExp = null;
 		
 		List<String> temp;
-		List<Variable> syn = null; 
+		
 		List<String> updatedVarsList = new ArrayList<>();
 		String conditionAssign = null;
 		String forLoopValue = null;
 		
+		
 		for(int i = 0; i < nLoop; i++) {
-			syn = Helper.copyList(listVariables);
+			
 			condition = formularize(loop.getExpression(), listVariables);
 			if(condition != null) {
+				if(forLoopValue != null)
+					condition = wrap(forLoopValue, "and", condition);
 				conditionAssign = wrap(forLoop.getValue(), "=", condition);
-//				f.add(conditionAssign);
+				f.add(conditionAssign);
 				forLoopValue = forLoop.getValue();
 			}
 			temp = formularize(block, listVariables);
@@ -376,19 +382,17 @@ public class Abstraction {
 				f.add(loopBody);
 			}
 			else {
-				aLoop = wrap(condition, "=>", loopBody);
+				aLoop = wrap(forLoopValue, "=>", loopBody);
 				f.add(aLoop);
 				updateVarsExp = updateVariable(syn, listVariables, updatedVarsList);
 				if(updateVarsExp != null)
-					f.add(wrap(wrap("not", condition), "=>", updateVarsExp));
+					f.add(wrap(wrap("not", forLoopValue), "=>", updateVarsExp));
 			}
-			
-			
+			syn = Helper.copyList(listVariables);
 		}
 		
 		return f;
 	}
-	
 	
 	public String formularize(CtLocalVariable var, 
 											List<Variable> listVariables) 
@@ -591,12 +595,12 @@ public class Abstraction {
 			return str;
 		
 		for(int i = size - 2; i >= 0; i--) {
-			str = wrap(list.get(i), "and", str);
+			str = wrap(list.get(i), conjunction, str);
 		//	str = list.get(i) + conjuntion + str;
 		}
 		
-		// return str;
-		return wrap(str);
+		return str;
+//		return wrap(str);
 	}
 	
 	private void deleteVarible() {
