@@ -1,0 +1,75 @@
+package formula;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+
+import spoon.reflect.declaration.CtMethod;
+import spoon.reflect.declaration.CtParameter;
+
+public class MethodFormularization extends Formularization {
+	
+	
+	
+	public MethodFormularization(CtMethod method) {
+		this.method = method;
+		
+		List<CtParameter> parameters = method.getParameters();
+		listVariables = new ArrayList<Variable>();
+		
+		Variable varTemp;
+		for(CtParameter p: parameters) {
+			varTemp = new Variable(p.getSimpleName(), p.getType().toString());
+			varTemp.initialize();
+			listVariables.add(varTemp);
+		}
+	
+//		printListVar(listVariables);
+
+		String returnType = method.getType().toString();
+		if( !returnType.equals("void")) {
+			returnVar = new VariableWithoutIndex("return", returnType);
+			returnVar.initialize();
+		}
+		
+		if(returnVar == null) {
+			System.out.println("return var == null");
+			returnVar = new VariableWithoutIndex("return", returnType);
+		}
+		
+		listVariables.add(returnVar);
+		
+		init();
+		
+		formula = formularize(method.getBody());
+	}
+	
+	public void printFormula() {
+		for(String s: formula) {
+			System.out.println(s);
+		}
+	}
+
+	@Override
+	public List<String> getFormula() {
+		return formula;
+	}
+	
+	
+	public static void main(String[] args) {
+		System.out.println("hello world");
+		LauncherSpoon launcher = new LauncherSpoon();
+		String pathFile = "TestSpoon.java";
+//		pathFile = "test.java";
+		File resource = new File(pathFile);
+		if(!resource.exists()) {
+			System.err.println("cannot open file");
+			System.exit(1);
+		}
+		launcher.addInputResource(pathFile);
+		launcher.buildModel();
+		launcher.foo2();
+	}
+
+	private CtMethod method;
+}
