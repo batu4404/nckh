@@ -25,79 +25,104 @@ public abstract class Formularization {
 	public abstract List<String> getFormula();
 	
 	public List<String> formularize(CtStatement statement,
-									String preCondition) {
+									StringBox lastReturnFlag,
+									StringBox lastBreakFlag,
+									StringBox lastContinueFlag) {
 		List<String> f = new ArrayList<>();
-		if(statement == null)
+		if (statement == null)
 			return f;
 		
+		String preCondition = getPreCondition();
+		
 		String s = null;
-		if(statement instanceof CtAssignment) {
+		if (statement instanceof CtAssignment) {
 			f = formularize((CtAssignment) statement);
 		}
-		else if(statement instanceof CtUnaryOperator) {
+		else if (statement instanceof CtUnaryOperator) {
 			s = formularize((CtUnaryOperator) statement);
 		}
-		else if(statement instanceof CtIf) {
+		else if (statement instanceof CtIf) {
 			IfFormularization ifF = new IfFormularization((CtIf) statement, listVariables, 
 															flagVariables, lastReturnFlag);
 			f = ifF.getFormula();
 			System.out.println("last return flag: " + lastReturnFlag);
 		} 
-		else if(statement instanceof CtSwitch) {
-//			f = formularize((CtSwitch) statement);
+		else if (statement instanceof CtSwitch) {
+			SwitchFormularization sf = 
+						new SwitchFormularization((CtSwitch) statement, 
+													listVariables, flagVariables, 
+													lastReturnFlag);
+			f = sf.getFormula();
 		}
-		else if(statement instanceof CtBlock) {
-			f = formularize((CtBlock) statement);
+		else if (statement instanceof CtBlock) {
+			f = formularize((CtBlock) statement, lastReturnFlag, null, null);
 		} 
-		else if(statement instanceof CtLocalVariable) {
+		else if (statement instanceof CtLocalVariable) {
 			f = formularize( (CtLocalVariable) statement);
 		}
-		else if(statement instanceof CtFor) {
+		else if (statement instanceof CtFor) {
 			ForFormularization forF = new ForFormularization((CtFor) statement, 
 								listVariables, flagVariables, lastReturnFlag);
 			f = forF.getFormula();
 		}
-		else if(statement instanceof CtReturn) {
-			s = formularize((CtReturn) statement);
-		}	
+		else if (statement instanceof CtReturn) {
+			f = formularize((CtReturn) statement, lastReturnFlag);
+		}
+		else if (statement instanceof CtBreak) {
+			s = formularize(lastBreakFlag);
+		}
 		
-		if(s != null) {
-			if(preCondition != null)
-				s = wrap(preCondition, "=>", s);
+		
+		if (s != null) {
 			f.add(s);
+		}
+		
+		if (preCondition != null) {
+			String temp = wrapAll(f, "and");
+			temp = wrap(preCondition, "=>", temp);
+			f.clear();
+			f.add(temp);
 		}
 		
 		return f;
 	}
 	
-	public List<String> formularize(List<CtStatement> list, String preCondition) {
+	public List<String> formularize(List<CtStatement> list,
+									StringBox lastReturnFlag,
+									StringBox lastBreakFlag,
+									StringBox lastContinueFlag) {
 		
 		List<String> f = new ArrayList<>();
 		
-		if(list == null)
+		if (list == null)
 			return f;
 	
 		List<String> temp = new ArrayList<>();
 		for(CtStatement s: list) {
-			temp = formularize(s, preCondition);
+			temp = formularize(s, lastReturnFlag, lastBreakFlag, lastContinueFlag);
 			f.addAll(temp);
 		}
 	
 		return f;
 	}
 	
-	public List<String> formularize(CtBlock block) {
+	public List<String> formularize(CtBlock block, 
+									StringBox lastReturnFlag,
+									StringBox lastBreakFlag,
+									StringBox lastContinueFlag) {
 		
-		if(block == null)
+		if (block == null)
 			return new ArrayList<>();
 		
-		return formularize(block.getStatements(), null);
+	
+		
+		return formularize(block.getStatements(), lastReturnFlag, lastBreakFlag, lastBreakFlag);
 	}
 	
 	public String formularize(CtUnaryOperator unaryOp) {
 		
 		CtExpression operand = unaryOp.getOperand();
-		if(operand instanceof CtLiteral) {
+		if (operand instanceof CtLiteral) {
 			return unaryOp.toString();
 		}
 			
@@ -106,7 +131,7 @@ public abstract class Formularization {
 		String opStr = Helper.getUnaryOperator(operator);
 		String exp = null;
 		String f;
-		if(opStr.equals("+") || opStr.equals("-")) {
+		if (opStr.equals("+") || opStr.equals("-")) {
 			exp = wrap(variable.getValue(), opStr, "1");
 			variable.increase();
 			f = wrap(variable.getValue(), "=", exp);
@@ -134,7 +159,7 @@ public abstract class Formularization {
 		Variable v = Variable.getVariable(variableName, listVariables);
 		
 		// nếu biến v chưa có trong list thì thêm vào, ngược lại thì tăng index cũ
-		if(v == null) {
+		if (v == null) {
 			v = new Variable(variableName, var.getType().toString());
 			listVariables.add(v);
 		}
@@ -145,7 +170,7 @@ public abstract class Formularization {
 		
 		String initializer;
 		CtExpression initializerExp = var.getAssignment();
-		if(initializerExp != null) {
+		if (initializerExp != null) {
 			v.initialize();
 			initializer = formularize(initializerExp);
 			f.add( wrap(v.getValue(), "=", initializer) ); 
@@ -154,39 +179,67 @@ public abstract class Formularization {
 		return f;
 	}
 	
-	public String formularize(CtReturn retExp) {
+	public List<String> formularize(CtReturn retExp, StringBox returnFlagVal) {
 		
-		if(retExp.getReturnedExpression() == null)
+		if (retExp.getReturnedExpression() == null)
 			return null;
+		
+		List<String> f = new ArrayList<>();
+		
+		if (returnFlag.hasInitialized())
+			returnFlag.increase();
+		else
+			returnFlag.initialize();
+		String assign = wrap(returnFlag.getValue(), "=", "true");
+		f.add(assign);
+		
+		if (returnFlagVal != null) {
+			returnFlagVal.setString(returnFlag.getValue());
+		}
+		
+		if (retExp.getReturnedExpression() == null)
+			return f;
 					
 		String ret = formularize(retExp.getReturnedExpression());
-		if(ret == null) {
-			System.out.println("ret is null");
-			System.exit(1);
-		}
-		if(returnVar == null) {
-			System.out.println("returnVar is null");
-			System.exit(1);
+		
+		assign = wrap("return", "=", ret); 
+		
+		f.add(assign);
+		return f;
+	}
+	
+	/**
+	 * @param breakFlagVal
+	 * @return
+	 */
+	public String formularize(StringBox breakFlagVal) {
+		
+		if (breakFlag.hasInitialized())
+			breakFlag.increase();
+		else
+			breakFlag.initialize();
+		String assign = wrap(breakFlag.getValue(), "=", "true");
+		
+		if (breakFlagVal != null) {
+			breakFlagVal.setString(breakFlag.getValue());
 		}
 		
-		System.out.println("returnvar.getValue: " + returnVar.getValue());
-		
-		return wrap(returnVar.getValue(), "=", ret); 
+		return assign;
 	}
 	
 	public String formularize(CtExpression exp) {
 		String f = null;
 		
-		if(exp instanceof CtBinaryOperator) {			
+		if (exp instanceof CtBinaryOperator) {			
 			f = formularize((CtBinaryOperator) exp);
 		}
-		else if(exp instanceof CtUnaryOperator) {
+		else if (exp instanceof CtUnaryOperator) {
 			f = formularize((CtUnaryOperator) exp);
 		}
-		else if(exp instanceof CtVariableAccess) {
+		else if (exp instanceof CtVariableAccess) {
 			f = formularize((CtVariableAccess) exp);
 		}
-		else if(exp instanceof CtLiteral) {
+		else if (exp instanceof CtLiteral) {
 			f = formularize((CtLiteral) exp);
 		}
 		
@@ -202,19 +255,19 @@ public abstract class Formularization {
 		
 		Variable v = Variable.getVariable(left.toString(), listVariables);
 		
-		if(v == null) {
+/*		if (v == null) {
 			System.out.println("v is null");
 			System.out.println("left: " + left);
 			System.exit(1);
 		}
-
-		if(v.hasInitialized())
+*/
+		String rightHandSide = formularize(right);
+		
+		if (v.hasInitialized())
 			v.increase();
 		else
 			v.initialize();
-		
 		String leftHandSide = v.getValue();
-		String rightHandSide = formularize(right);
 		
 		String s = wrap(leftHandSide, "=", rightHandSide);
 		List<String> f = new ArrayList<>();
@@ -236,7 +289,7 @@ public abstract class Formularization {
 	
 	public String formularize(CtVariableAccess var) {
 		Variable v = Variable.getVariable(var.toString(), listVariables);
-		if(v == null)
+		if (v == null)
 			return "n/a";
 		
 		return v.getValue();
@@ -246,142 +299,81 @@ public abstract class Formularization {
 		return literal.toString();
 	}
 	
-	protected boolean hasReturn(CtStatement s) {
-		if(s instanceof CtBlock) {
-			CtBlock b = (CtBlock) s;
-			List<CtStatement> list = b.getStatements();
-			for(CtStatement ss: list) {
-				if( hasReturn(ss) )
-					return true;
-			}
-		}
-		else if(s instanceof CtReturn) {
-			return true;
-		}
-				
-		return false;
+	protected String getPreCondition() {
+		String preCondition = null;
+		if (lastReturnFlag.getString() != null)
+			preCondition = wrap("not", lastReturnFlag.getString());
+			
+		return preCondition;
 	}
 	
-	protected boolean hasBreak(CtStatement s) {
-		if(s instanceof CtBlock) {
-			CtBlock b = (CtBlock) s;
-			List<CtStatement> list = b.getStatements();
-			for(CtStatement ss: list) {
-				if( hasBreak(ss) )
-					return true;
-			}
-		}
-		else if(s instanceof CtBreak) {
-			return true;
-		}
-				
-		return false;
-	}
+
 	
-	protected boolean hasContinue(CtStatement s) {
-		if(s instanceof CtBlock) {
-			CtBlock b = (CtBlock) s;
-			List<CtStatement> list = b.getStatements();
-			for(CtStatement ss: list) {
-				if( hasReturn(ss) )
-					return true;
-			}
-		}
-		else if(s instanceof CtContinue) {
-			return true;
-		}
-				
-		return false;
-	}
-	
-	protected String syncVariable(List<Variable> dest, List<Variable> source, List<String> updatedVarsList) {
-		if(updatedVarsList == null) 
+	protected List<String> syncVariable(List<Variable> dest, 
+										List<Variable> source, 
+										List<String> syncVarsList) {
+		if (syncVarsList == null) 
 			return syncVariable(dest, source);
 		
+		List<String> sync = new ArrayList<>();
 		Variable temp;
 		String updateExp = null;
 		String syncAVar = null;
 		String exp;
 		
-		if (updatedVarsList.size() != 0) {
+		if (syncVarsList.size() != 0) {
 
-			for(String v: updatedVarsList) {
+			for(String v: syncVarsList) {
 				syncAVar = syncAVar(dest, source, v);
-				if(syncAVar != null) {
-					if(updateExp == null) 
-						updateExp = syncAVar;
-					else
-						updateExp = wrap(syncAVar, "and", updateExp);
+				if (syncAVar != null) {
+					sync.add(syncAVar);
 				}
 			}
 		}
 		else {
 			for(Variable v: dest) {
 				temp = Variable.getVariable(v.getName(), source);
-				if(temp == null)
+				if (temp == null)
 					continue;
-				if(temp.getIndex() > v.getIndex() ) {
-					updatedVarsList.add(v.getName());
+				if (temp.getIndex() > v.getIndex() ) {
+					syncVarsList.add(v.getName());
 					exp = wrap(temp.getValue(), "=", v.getValue());
-					if(updateExp == null) 
-						updateExp = exp;
-					else
-						updateExp = wrap(exp, "and", updateExp);
+					sync.add(exp);
 				}
 			}
 		}
 		
-		return updateExp;
+		return sync;
 	}
 	
 	protected String syncAVar(List<Variable> dest, List<Variable> source, String varName) {
 		Variable v1 = Variable.getVariable(varName, dest);
 		Variable v2 = Variable.getVariable(varName, source);
 		
-		if(v1 == null || v2 == null)
+		if (v1 == null || v2 == null)
 			return null;
 		
 		return wrap(v2.getValue(), "=", v1.getValue());
 	}
 	
 	
-	protected String syncVariable(List<Variable> dest, List<Variable> source) {
+	protected List<String> syncVariable(List<Variable> dest, List<Variable> source) {
+		List<String> sync = new ArrayList<>();
 		Variable temp;
-		String updateExp = null;
 		String exp;
 		for(Variable v: dest) {
 			temp = Variable.getVariable(v.getName(), source);
-			if(temp == null)
+			if (temp == null)
 				continue;
-			if(v.getIndex() > temp.getIndex() ) {
-				exp = wrap(v.getValue(), "=", temp.getValue());
-				if(updateExp == null) 
-					updateExp = exp;
-				else
-					updateExp = wrap(exp, "and", updateExp);
+			if (temp.getIndex() > v.getIndex() ) {
+				exp = wrap(temp.getValue(), "=", v.getValue());
+				sync.add(exp);
 			}
 		}
 		
-		return updateExp;
+		return sync;
 	}
 	
-	public String wrapAll(List<String> list, String conjunction) {
-		if(list == null || list.size() == 0)
-			return null;
-		
-		int size = list.size();
-		String str = list.get(size-1);
-		if(size == 1)
-			return str;
-		
-		for(int i = size - 2; i >= 0; i--) {
-			str = wrap(list.get(i), conjunction, str);
-		//	str = list.get(i) + conjuntion + str;
-		}
-		
-		return str;
-//		return wrap(str);
-	}
 	
 	protected void init() {
 		forFlag = new Variable("for", "bool");
@@ -406,20 +398,18 @@ public abstract class Formularization {
 		this.flagVariables = flagVariables;
 		this.lastReturnFlag = lastReturnFlag;
 		
+		returnFlag = Variable.getVariable("return", flagVariables);
+/*		
 		forFlag = Variable.getVariable("for", flagVariables);
 		ifFlag = Variable.getVariable("if", flagVariables);
-		returnFlag = Variable.getVariable("return", flagVariables);
 		breakFlag = Variable.getVariable("break", flagVariables);
-		
-		returnVar = Variable.getVariable("return", listVariables);
-		System.out.println("returnvar.getclass: " + returnVar.getClass());
-		System.out.println("returnvar: " + returnVar);
+*/
 	}
 	
 	
 	public String wrap(String exp1, String op, String exp2) {
-//		return "(" + exp1 + " " + op + " " + exp2 + ")";
-		return "(" + op + " " + exp1 + " " + exp2 + ")";
+		return "(" + exp1 + " " + op + " " + exp2 + ")";
+//		return "(" + op + " " + exp1 + " " + exp2 + ")";
 	}
 	
 	public String wrap(String op, String exp) {
@@ -430,8 +420,27 @@ public abstract class Formularization {
 		return "(" + exp + ")";
 	}
 	
+	public String wrapAll(List<String> list, String conjunction) {
+		if (list == null || list.size() == 0)
+			return null;
+		
+		int size = list.size();
+		String str = list.get(size-1);
+		if (size == 1)
+			return str;
+		
+		for(int i = size - 2; i >= 0; i--) {
+//			str = wrap(list.get(i), conjunction, str);
+			str = list.get(i) + " " + conjunction + " " + str;
+		}
+		
+//		return str;
+		return wrap(str);
+	}
+	
+	
 	void printListVar(List<Variable> list) {
-		if(list == null) {
+		if (list == null) {
 			System.out.println(list + " is null");
 			System.exit(1);
 		}

@@ -16,6 +16,8 @@ public class ForFormularization extends Formularization {
 		loop = forLoop;
 		assign(listVariables, flagVariables, lastReturnFlag);
 		
+		
+		forFlag = Variable.getVariable("for", flagVariables);
 		if( !forFlag.hasInitialized())
 			forFlag.initialize();
 		else
@@ -54,7 +56,7 @@ public class ForFormularization extends Formularization {
 		int nLoop = defaultNumOfLoop;
 		
 		String condition = null;
-		String updateVarsExp = null;
+		List<String> updateVarsExp = null;
 		
 		List<String> temp;
 		
@@ -87,7 +89,7 @@ public class ForFormularization extends Formularization {
 				formula.add(aLoop);
 				updateVarsExp = syncVariable(sync, listVariables, updatedVarsList);
 				if(updateVarsExp != null)
-					formula.add(wrap(wrap("not", forLoopValue), "=>", updateVarsExp));
+					formula.add(wrap(wrap("not", forLoopValue), "=>", wrapAll(updateVarsExp, "and") ));
 			}
 			sync = Helper.copyList(listVariables);
 		}

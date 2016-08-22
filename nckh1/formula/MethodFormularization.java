@@ -27,21 +27,10 @@ public class MethodFormularization extends Formularization {
 //		printListVar(listVariables);
 
 		String returnType = method.getType().toString();
-		if( !returnType.equals("void")) {
-			returnVar = new VariableWithoutIndex("return", returnType);
-			returnVar.initialize();
-		}
-		
-		if(returnVar == null) {
-			System.out.println("return var == null");
-			returnVar = new VariableWithoutIndex("return", returnType);
-		}
-		
-		listVariables.add(returnVar);
 		
 		init();
 		
-		formula = formularize(method.getBody());
+		formula = formularize(method.getBody(), lastReturnFlag, null, null);
 	}
 	
 	public void printFormula() {

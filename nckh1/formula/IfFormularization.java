@@ -21,6 +21,8 @@ public class IfFormularization extends Formularization {
 		
 		assign(listVariables, flagVariables, lastReturnFlag);
 		
+		ifFlag = Variable.getVariable("if", flagVariables);
+		
 		if( !ifFlag.hasInitialized())
 			ifFlag.initialize();
 		else 
@@ -51,34 +53,38 @@ public class IfFormularization extends Formularization {
 	// formularize then statement
 	private void formularizeThenStatement() {
 		
-		List<Variable> backup = listVariables;
+		List<Variable> lvBackup = listVariables;
 		thenListVars = Helper.copyList(listVariables);
 		listVariables = thenListVars;
 		
-		StringBox temp = lastReturnFlag;
-		lastReturnFlag = lastReturnThenFlag;
+		List<Variable> flagsBackup = flagVariables;
+		thenFlags = Helper.copyList(flagVariables);
+		flagVariables = thenFlags;
 		
-		fThen = formularize(thenStatement, null);
 		
-		lastReturnFlag = temp;
+		fThen = formularize(thenStatement, thenReturnFlagVal, null, null);
 		
-		listVariables = backup; 
+		listVariables = lvBackup; 
+		
+		flagVariables = flagsBackup;
 	}
 	
 	// formularize else statement
 	private void formularizeElseStatement() {
-		List<Variable> backup = listVariables;
+		List<Variable> lvBackup = listVariables;
 		elseListVars = Helper.copyList(listVariables);
 		listVariables = elseListVars;
 		
-		StringBox temp = lastReturnFlag;
-		lastReturnFlag = lastReturnElseFlag;
+		List<Variable> flagsBackup = flagVariables;
+		elseFlags = Helper.copyList(flagVariables);
+		flagVariables = elseFlags;
 		
-		fElse = formularize(elseStatement, null);
 		
-		lastReturnFlag = temp;
+		fElse = formularize(elseStatement, elseReturnFlagVal, null, null);
 		
-		listVariables = backup;
+		listVariables = lvBackup;
+		
+		flagVariables = flagsBackup;
 	}
 	
 	
@@ -94,42 +100,56 @@ public class IfFormularization extends Formularization {
 			else
 				v.setIndex(v2.getIndex());
 		}
+		
+		for(Variable v: flagVariables) {
+//			System.out.println("v: " + v);
+			v1 = Variable.getVariable(v.getName(), thenFlags);
+			v2 = Variable.getVariable(v.getName(), elseFlags);
+			if( v1.getIndex() > v2.getIndex()) 
+				v.setIndex(v1.getIndex());
+			else
+				v.setIndex(v2.getIndex());
+		}
 	}
 	
 	
 	// tim phan them vao
-	private void findReturnAddition() {
-		System.out.println("find return");
+	private void findAddition() {
+		syncReturnFlag();
 		
-		if( hasReturn(thenStatement) ) {
-			System.out.println("then has return");
-			returnFlag.increase();
-			returnFlagValue = returnFlag.getValue();
-			thenAddition = wrap(returnFlagValue, "=", "true");
-			elseAddition = syncVariable(listVariables, elseListVars);
-			
-			
-			if(lastReturnElseFlag.getString() != null)
-				elseAddition = wrap(elseAddition, "and", wrap(returnFlagValue, "=", lastReturnElseFlag.getString()));
-			else {
-				System.out.println("returnflagvalue = false");
-				elseAddition = wrap(elseAddition, "and", wrap(returnFlagValue, "=", "false"));
+		if( syncThen)
+			thenAddition.addAll( syncVariable(listVariables, thenListVars) );
+		if( syncElse)
+			elseAddition.addAll( syncVariable(listVariables, elseListVars) );
+	}
+	
+	private void syncReturnFlag() {
+		if(thenReturnFlagVal.getString() == null) {
+			if(elseReturnFlagVal.getString() != null) {
+				syncElse = false;
+				thenAddition.add( wrap(elseReturnFlagVal.getString(), "=", "false") );
+			}
+		} else if(elseReturnFlagVal.getString() == null) {
+			System.out.println("else is null");
+			if(thenReturnFlagVal.getString() != null) {
+				syncThen = false;
+				elseAddition.add( wrap(thenReturnFlagVal.getString(), "=", "false") );
+			}
+		} else if(thenReturnFlagVal.getString() != null && elseReturnFlagVal.getString() != null) {
+			String temp;
+			temp = syncAVar(thenFlags, flagVariables, "return");
+			if(temp != null) {
+				lastReturnFlag.setString(temp);
 			}
 				
-		} else if( hasReturn(elseStatement) ) {
-			returnFlag.increase();
-			returnFlagValue = returnFlag.getValue();
-			elseAddition = wrap(returnFlagValue, "=", "true");
-			thenAddition = syncVariable(listVariables, thenListVars);
-			if(lastReturnThenFlag.getString() != null)
-				wrap(thenAddition, "and", wrap(returnFlagValue, "=", lastReturnThenFlag.getString()));
-			else
-				wrap(thenAddition, "and", wrap(returnFlagValue, "=", "false"));
-		} else {
-			thenAddition = syncVariable(listVariables, thenListVars);
-			elseAddition = syncVariable(listVariables, elseListVars);
 			
+			temp = syncAVar(elseFlags, flagVariables, "return");
+			if(temp != null) {
+				lastReturnFlag.setString(temp);
+			}
 		}
+		
+		lastReturnFlag.setString(returnFlag.getValue());
 	}
 
 	
@@ -137,37 +157,17 @@ public class IfFormularization extends Formularization {
 		String f;
 		
 		if(thenAddition != null)
-			fThen.add(thenAddition);
+			fThen.addAll(thenAddition);
 		f = wrapAll(fThen, "and");
 		if(f != null)
 			formula.add( wrap(ifFlagStr, "=>", f) );
 		
 		if(elseAddition != null)
-			fElse.add(elseAddition);
+			fElse.addAll(elseAddition);
 		f = wrapAll(fElse, "and");
 		if(f != null)
 			formula.add( wrap(wrap("not", ifFlagStr), "=>", f) );
 		
-		
-		if(lastReturnFlag.getString() == null) {
-			System.out.println("getString is null");
-			if(returnFlagValue != null) {
-				lastReturnFlag.setString(returnFlagValue);
-			}
-		} else {
-			String temp1 = wrap(wrap("not", lastReturnFlag.getString()), "=>", wrapAll(formula, "and"));
-			System.out.println("temp1: " + temp1);
-			String temp2 = null;
-			
-			if(returnFlagValue != null) {
-				temp2 = wrap(lastReturnFlag.getString(), "=>", wrap(returnFlagValue, "=", lastReturnFlag.getString()));
-			}
-			
-			formula.clear();
-			formula.add(temp1);
-			if(temp2 != null)
-				formula.add(temp2);
-		}
 	}
 	
 	private void formularize() {
@@ -179,7 +179,7 @@ public class IfFormularization extends Formularization {
 	
 		updateIndex();
 		
-		findReturnAddition();
+		findAddition();
 		
 		Variable.addVariable(listVariables, thenListVars);
 		Variable.addVariable(listVariables, elseListVars);
@@ -197,8 +197,8 @@ public class IfFormularization extends Formularization {
 	
 	StringBox ownReturnFlag;
 	
-	StringBox lastReturnThenFlag = new StringBox();
-	StringBox lastReturnElseFlag = new StringBox();
+	StringBox thenReturnFlagVal = new StringBox();
+	StringBox elseReturnFlagVal = new StringBox();
 	
 	CtStatement thenStatement;
 	CtStatement	elseStatement;
@@ -206,9 +206,15 @@ public class IfFormularization extends Formularization {
 	private List<String> fThen;	// formula of then statement
 	private List<String> fElse;  	// formula of else statement
 	
-	private String thenAddition;	// phan them vao bieu thuc then nhu: return, break, continue hay dong bo gia tri cac bien
-	private String elseAddition;	// phan them vao bieu thuc else nhu: return, break, continue hay dong bo gia tri cac bien
+	private List<String> thenAddition = new ArrayList<>();	// phan them vao bieu thuc then nhu: return, break, continue hay dong bo gia tri cac bien
+	private List<String> elseAddition = new ArrayList<>();	// phan them vao bieu thuc else nhu: return, break, continue hay dong bo gia tri cac bien
 	
 	private List<Variable> thenListVars;	// danh sach cac bien sau khi da cong thuc then
 	private List<Variable> elseListVars;	// danh sach cac bien sau khi da cong thuc else
+	
+	private List<Variable> thenFlags;
+	private List<Variable> elseFlags;
+	
+	private boolean syncThen = true;
+	private boolean syncElse = true;
 }
