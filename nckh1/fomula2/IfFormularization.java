@@ -91,29 +91,27 @@ public class IfFormularization extends Formularization {
 	}
 	
 	
-	// cap nhat lai index cua danh sach cac bien
 	private void syncIndex() {
-		Variable v1, v2;
-		for(Variable v: listVariables) {
-
-			v1 = Variable.getVariable(v.getName(), thenListVars);
-			v2 = Variable.getVariable(v.getName(), elseListVars);
-			if( v1.getIndex() > v2.getIndex()) 
-				v.setIndex(v1.getIndex());
-			else
-				v.setIndex(v2.getIndex());
-			
-			v.initialize();
-		}
+		syncIndex(listVariables, thenListVars, elseListVars);
 		
-		for(Variable v: flagVariables) {
-
-			v1 = Variable.getVariable(v.getName(), thenFlags);
-			v2 = Variable.getVariable(v.getName(), elseFlags);
+		syncIndex(flagVariables, thenFlags, elseFlags);
+	}
+	
+	// cap nhat lai index cua danh sach cac bien
+	private void syncIndex(List<Variable> list, List<Variable> thenList,
+							List<Variable> elseList) {
+		Variable v1, v2;
+		int oldIndex;
+		for(Variable v: list) {
+			oldIndex = v.getIndex();
+			v1 = Variable.getVariable(v.getName(), thenList);
+			v2 = Variable.getVariable(v.getName(), elseList);
 			if( v1.getIndex() > v2.getIndex()) 
 				v.setIndex(v1.getIndex());
 			else
 				v.setIndex(v2.getIndex());
+			if (oldIndex < v.getIndex())
+				v.initialize();
 		}
 	}
 	

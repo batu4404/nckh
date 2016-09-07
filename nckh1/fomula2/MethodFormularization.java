@@ -27,8 +27,6 @@ public class MethodFormularization extends Formularization {
 		returnType = method.getType().toString();
 		
 		init();
-		
-		formula = formularize(method.getBody(), lastReturnFlag, null, null);
 	}
 	
 	public void printFormula() {
@@ -39,14 +37,30 @@ public class MethodFormularization extends Formularization {
 
 	@Override
 	public List<String> getFormula() {
+		if (formula == null) {
+			formula = formularize(method.getBody(), lastReturnFlag, null, null);
+		}
 		return formula;
 	}
 	
+	public List<Variable> getVariables() {
+		if ( !hasGetVariables ) {
+			listVariables.addAll(flagVariables);
+			if ( !returnType.equals("void") ) {
+				Variable returnVar = new Variable("return", returnType);
+				returnVar.initialize();
+				returnVar.setIndex(-1);
+				listVariables.add(returnVar);
+			}
+			hasGetVariables = true;
+		}
+		return listVariables;
+	}
 	
 	public static void main(String[] args) {
 
 		LauncherSpoon launcher = new LauncherSpoon();
-		String pathFile = "TestSpoon.java";
+		String pathFile = "test_spoon.java";
 //		pathFile = "test.java";
 		File resource = new File(pathFile);
 		if(!resource.exists()) {
@@ -55,10 +69,13 @@ public class MethodFormularization extends Formularization {
 		}
 		launcher.addInputResource(pathFile);
 		launcher.buildModel();
-		launcher.foo2();
+		launcher.foo();
+
 	}
 
 	private CtMethod method;
 	
 	private String returnType;
+	
+	private boolean hasGetVariables = false;
 }

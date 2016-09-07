@@ -8,13 +8,9 @@ public class Variable {
 	public Variable(String name, String type) {
 		this.name = name;
 		this.type = type;
-		index = 0;
+		index = -1;
 	}
-	
-	public Variable(String name, int index) {
-		this.name = name;
-		this.index = index;
-	}
+
 	
 	public Variable(Variable other) {
 		name = other.name;
@@ -40,8 +36,14 @@ public class Variable {
 	}
 	
 	public String getValue() {
-		if (hasInitialized)
-			return name + "_" + index;
+		if (index < 0)
+			return name;
+		if (hasInitialized) {
+			if (index < 0)
+				return name;
+			else
+				return name + "_" + index;
+		}
 		else
 			return "N/A";
 	} 

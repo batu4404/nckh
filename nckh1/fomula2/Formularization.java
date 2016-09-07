@@ -352,7 +352,12 @@ public abstract class Formularization {
 	}
 	
 	public String formularize(CtLiteral literal) {
-		return literal.toString();
+		String l = literal.toString();
+		char lastChar = l.charAt(l.length()-1);
+		if ( lastChar == 'f' || lastChar == 'F' ) 
+			l = l.substring(0, l.length()-1);
+		
+		return l;
 	}
 	
 	protected String getPreCondition(StringBox lastReturnFlag, 
@@ -489,8 +494,8 @@ public abstract class Formularization {
 	
 	
 	public String wrap(String exp1, String op, String exp2) {
-		return "(" + exp1 + " " + op + " " + exp2 + ")";
-//		return "(" + op + " " + exp1 + " " + exp2 + ")";
+//		return "(" + exp1 + " " + op + " " + exp2 + ")";
+		return "(" + op + " " + exp1 + " " + exp2 + ")";
 	}
 	
 	public String wrap(String op, String exp) {
@@ -511,12 +516,12 @@ public abstract class Formularization {
 			return str;
 		
 		for(int i = size - 2; i >= 0; i--) {
-//			str = wrap(list.get(i), conjunction, str);
-			str = list.get(i) + " " + conjunction + " " + str;
+			str = wrap(list.get(i), conjunction, str);
+//			str = list.get(i) + " " + conjunction + " " + str;
 		}
 		
-//		return str;
-		return wrap(str);
+		return str;
+//		return wrap(str);
 	}
 	
 	

@@ -36,11 +36,11 @@ public class Helper {
 		else if(operator == BinaryOperatorKind.GE)
 			opStr = ">=";
 		else if(operator == BinaryOperatorKind.EQ)
-			opStr = "==";
+			opStr = "=";
 		else if(operator == BinaryOperatorKind.AND)
-			opStr = "&&";
+			opStr = "and";
 		else if(operator == BinaryOperatorKind.OR)
-			opStr = "||";
+			opStr = "or";
 		
 		return opStr;
 	}

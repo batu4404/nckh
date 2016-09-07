@@ -82,7 +82,8 @@ public class ForFormularization extends Formularization {
 				formula.add(aLoop);
 				updateVarsExp = syncVariable(sync, listVariables, updatedVarsList);
 				if(updateVarsExp != null)
-					formula.add(wrap(wrap("not", forFlagVal), "=>", wrapAll(updateVarsExp, "and") ));
+					formula.add(wrap(wrap("not", forFlagVal), "=>", 
+								wrapAll(updateVarsExp, "and") ));
 			}
 			sync = Helper.copyList(listVariables);
 		}
@@ -193,7 +194,11 @@ public class ForFormularization extends Formularization {
 		String preConOfUpdate = getPreCondition(lastReturn, lastBreak, null);
 		
 		String updateStr = wrapAll(update, "and");
-		String f = wrap(preConOfUpdate, "=>", updateStr);
+		String f = null;
+		if (preConOfUpdate != null)
+			f = wrap(preConOfUpdate, "=>", updateStr);
+		else 
+			f = updateStr;
 		
 		return f;
 	}

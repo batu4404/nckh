@@ -65,42 +65,14 @@ public class LauncherSpoon {
 		modelBuilder.build();
 	}
 	
-	public void foo() {
-		System.out.println("\n\nfoo\n\n");
-		CtModel model = factory.getModel();
-		Filter filter = new TypeFilter(CtMethod.class);
-		List<CtMethod> methodList = model.getElements(filter);
-		Abstraction test;
-		for(CtMethod m: methodList) {
-			System.out.println(m);
-			test = new Abstraction(m);
-//			System.out.println("f: " + test.methodAbstraction());
-			List<String> f = test.methodAbstraction();
-			for(String s: f) {
-				System.out.println(s);
-				if(Test1.checkBracket(s) == false)
-					System.out.println("check bracket false" + "/n-------------------------------");
-				if( Test1.checkDoubleBracket(s) == false)
-					System.out.println("check double bracket false" + "/n-------------------------------");
-			}
-					
-		}
-		
-		CtMethod firstMethod = methodList.get(0);
-//		firstMethod.get
-//		System.out.println(firstMethod);
-		
-//		Abstraction test = new Abstraction(firstMethod);
-//		System.out.println("f: " + test.methodAbstraction());
-		
-	}
 	
-	public void foo2() {
+	public void foo() {
 		System.out.println("\n\nfoo 2\n\n");
 		CtModel model = factory.getModel();
 		Filter filter = new TypeFilter(CtMethod.class);
 		List<CtMethod> methodList = model.getElements(filter);
 		MethodFormularization test;
+		SMTInput smtInput = new SMTInput();
 		for(CtMethod m: methodList) {
 			System.out.println(m);
 			test = new MethodFormularization(m);
@@ -114,10 +86,13 @@ public class LauncherSpoon {
 					System.out.println("check double bracket false" + "/n-------------------------------");
 */
 			}
-					
+			
+			System.out.println("SMT input:");
+			smtInput.setFormula(test.getFormula());
+			smtInput.setListVariables(test.getVariables());
+			smtInput.printInput();
 		}
 		
-//		CtMethod firstMethod = methodList.get(0);
 	}
 	
 	
